@@ -1,0 +1,15 @@
+{
+  "name": "map-generator",
+  "version": "1.0.0",
+  "description": "generates tiled maps",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Matthew Butler",
+  "license": "ISC",
+  "dependencies": {
+    "array-2d": "^1.0.1",
+    "lodash": "^4.17.4"
+  }
+}
