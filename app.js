@@ -4,8 +4,6 @@ let cells = require('./cellular')
 
 var cellList = cells()
 
-console.log(typeof(cellList))
-
 var height = 100,
     width = 100,
     orientation = "orthogonal",
@@ -44,6 +42,34 @@ let stacking = {
         { "name": "Middleground", "range": _.range(122, 137) },
         { "name": "Blocked", "range": [124, 125] }
     ]
+}
+
+function placeTilesFromAtlas(tiles, x, y, tileList, layer, blocked) {
+    var tileset = _.find(map.tilesets, ['name', tiles])
+    var startTile = getIndexFromCoords(x, y)
+    var i, j
+    var tileList = tileList
+    var firstTile = _.head(tileList)
+    var lastTile = _.last(tileList)
+    var columns = 2
+    var chunkList = _.chunk(tileList, columns)
+    var mapLayer = _.find(map.layers, ['name', layer]) || {}
+    var blockedLayer = _.find(map.layers, ['name', "Blocked"])
+
+    _.forEach(chunkList, function(row) {
+        for (i = 0; i < columns; i++) {
+            let newY = y + _.indexOf(chunkList, row)
+            let newX = x + i
+            let index = getIndexFromCoords(newX, newY)
+            var currentTile = row[i]
+
+            mapLayer.data[index] = currentTile
+
+            if (blocked) {
+                blockedLayer.data[index] = 137
+            }
+        }
+    })
 }
 
 //place a tileset on a particular layer at a particular tilemap x, y coordinate
@@ -204,13 +230,11 @@ map = {
     "version": version
 }
 
-
-
 placeRandom("tree", 20, 8, 79)
 walkAndReplace(938, 939, 25, "Background", false)
 walkAndReplace(0, 1043, 1, "Foreground", false)
 walkAndReplace(0, 935, 1, "Foreground", true)
-
+placeTilesFromAtlas('terrain_atlas', 16, 15, [537, 538, 569, 570, 601, 602], "Middleground", true)
 
 
 fs.writeFile('generated-map.json', JSON.stringify(map, null, 4), function(err) {
