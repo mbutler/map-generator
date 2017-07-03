@@ -1,28 +1,26 @@
 let _ = require('lodash')
-let Array2d = require('array-2d')
-var chanceToStartAlive = 0.50
+
+var chanceToStartAlive = 50
 var worldWidth = 100
 var worldHeight = 100
-var empty = 7
-var solid = 1
-var numberOfSteps = 7
-var birthLimit = 4
-var deathLimit = 2
+var empty = 523 //tile index for dirt
+var solid = 938 //tile index for grass
+var numberOfSteps = 3
+var birthLimit = 3
+var deathLimit = 4
 
 function generateMap() {
-    //So, first we make the map
     var map = [
-            []
-        ]
-        //And randomly scatter solid blocks
+        []
+    ]
     initialiseMap(map)
 
-    //Then, for a number of steps
     for (var i = 0; i < numberOfSteps; i++) {
-        //We apply our simulation rules!
         map = doSimulationStep(map)
     }
-    //And we're done!
+
+    map = placeUnique(map, 2, 940)
+
     return map
 }
 
@@ -30,16 +28,15 @@ function initialiseMap(map) {
     for (var x = 0; x < worldWidth; x++) {
         map[x] = []
         for (var y = 0; y < worldHeight; y++) {
-            map[x][y] = 0
+            map[x][y] = empty
         }
     }
 
     for (var x = 0; x < worldWidth; x++) {
         for (var y = 0; y < worldHeight; y++) {
-            //Here we use our chanceToStartAlive variable
-            if (Math.random() < chanceToStartAlive)
+            if (_.random(100) < chanceToStartAlive)
             //We're using numbers, not booleans, to decide if something is solid here. 0 = not solid
-                map[x][y] = 1
+                map[x][y] = solid
         }
     }
 
@@ -89,18 +86,34 @@ function countAliveNeighbours(map, x, y) {
         for (var j = -1; j < 2; j++) {
             var nb_x = i + x
             var nb_y = j + y
-            if (i == 0 && j == 0) {}
+            if (i === 0 && j === 0) {}
             //If it's at the edges, consider it to be solid (you can try removing the count = count + 1)
             else if (nb_x < 0 || nb_y < 0 ||
                 nb_x >= map.length ||
                 nb_y >= map[0].length) {
                 count = count + 1
-            } else if (map[nb_x][nb_y] == 1) {
+            } else if (map[nb_x][nb_y] === solid) {
                 count = count + 1
             }
         }
     }
     return count
+}
+
+//limit of 5 is a lot
+function placeUnique(world, limit, tileIndex) {
+    var hiddenLimit = limit;
+    for (var x = 0; x < worldWidth; x++) {
+        for (var y = 0; y < worldHeight; y++) {
+            if (world[x][y] == empty) {
+                var nbs = countAliveNeighbours(world, x, y)
+                if (nbs >= hiddenLimit) {
+                    world[x][y] = tileIndex
+                }
+            }
+        }
+    }
+    return world
 }
 
 function getCells() {

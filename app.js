@@ -22,6 +22,22 @@ function getIndexFromCoords(x, y) {
     return index
 }
 
+//spacing is how often a tileset should be placed. Should be larger than the columns (20 for tree)
+//offset is an amount to make it look like its more random
+//rate is the occurence rate
+function placeRandom(tileName, spacing, offset, rate) {
+    for (var k = 1; k < width; k += spacing) {
+        for (var m = 0; m < height; m += spacing) {
+            var rand = _.random(100)
+            if (rand < rate) {
+                var placeX = k + _.random(1, offset)
+                var placeY = m + _.random(1, offset)
+                placeTiles(tileName, placeX, placeY)
+            }
+        }
+    }
+}
+
 let stacking = {
     "tree": [
         { "name": "Foreground", "range": _.range(73, 122) },
@@ -69,6 +85,25 @@ function placeTiles(tiles, x, y, layer) {
             }
         }
     })
+}
+
+// randomly replaces single tiles
+function walkAndReplace(original, replacement, rate, layer, blocked) {
+    let mapLayer = _.find(map.layers, ['name', layer])
+    let blockedLayer = _.find(map.layers, ['name', "Blocked"])
+    for (var p = 0; p < width * height; p++) {
+
+        if (mapLayer.data[p] === original) {
+            let rand = _.random(100)
+            if (rand < rate) {
+                mapLayer.data[p] = replacement
+
+                if (blocked === true) {
+                    blockedLayer.data[p] = 137
+                }
+            }
+        }
+    }
 }
 
 function makeLayer(layerName) {
@@ -150,17 +185,33 @@ map = {
             "tilecount": 1,
             "tileheight": 32,
             "tilewidth": 32
+        },
+        {
+            "columns": 32,
+            "firstgid": 138,
+            "image": "terrain_atlas.png",
+            "imageheight": 1024,
+            "imagewidth": 1024,
+            "margin": 0,
+            "name": "terrain_atlas",
+            "properties": {},
+            "spacing": 0,
+            "tilecount": 1024,
+            "tileheight": 32,
+            "tilewidth": 32
         }
     ],
     "version": version
 }
 
-for (var k = 1; k < 20; k++) {
-    var coolX = _.random(1, 100)
-    var coolY = _.random(1, 100)
-        //placeTiles("tree", coolX, coolY)
-}
-placeTiles("tree", 50, 50)
+
+
+placeRandom("tree", 20, 8, 79)
+walkAndReplace(938, 939, 25, "Background", false)
+walkAndReplace(0, 1043, 1, "Foreground", false)
+walkAndReplace(0, 935, 1, "Foreground", true)
+
+
 
 fs.writeFile('generated-map.json', JSON.stringify(map, null, 4), function(err) {
     if (err) return console.log(err)
