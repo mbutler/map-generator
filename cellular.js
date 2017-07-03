@@ -100,12 +100,13 @@ function countAliveNeighbours(map, x, y) {
     return count
 }
 
-//limit of 5 is a lot
+// fills in a new unique tile around 'empty' edges
+// 
 function placeUnique(world, limit, tileIndex) {
     var hiddenLimit = limit;
     for (var x = 0; x < worldWidth; x++) {
         for (var y = 0; y < worldHeight; y++) {
-            if (world[x][y] == empty) {
+            if (world[x][y] === empty) {
                 var nbs = countAliveNeighbours(world, x, y)
                 if (nbs >= hiddenLimit) {
                     world[x][y] = tileIndex
