@@ -9,17 +9,18 @@ var numberOfSteps = 3
 var birthLimit = 3
 var deathLimit = 4
 
-function generateMap() {
+function generateMap(edgeTile) {
     var map = [
         []
     ]
+    var edge = edgeTile || 940
     initialiseMap(map)
 
     for (var i = 0; i < numberOfSteps; i++) {
         map = doSimulationStep(map)
     }
 
-    map = placeUnique(map, 2, 940)
+    map = placeEdgeTiles(map, 2, edge)
 
     return map
 }
@@ -101,8 +102,7 @@ function countAliveNeighbours(map, x, y) {
 }
 
 // fills in a new unique tile around 'empty' edges
-// 
-function placeUnique(world, limit, tileIndex) {
+function placeEdgeTiles(world, limit, tileIndex) {
     var hiddenLimit = limit;
     for (var x = 0; x < worldWidth; x++) {
         for (var y = 0; y < worldHeight; y++) {
@@ -117,13 +117,18 @@ function placeUnique(world, limit, tileIndex) {
     return world
 }
 
-function getCells() {
-    var cellmap = generateMap()
+function getCells(_empty, _solid, startAliveChance, steps, birth, death, edgeTile) {
+    chanceToStartAlive = startAliveChance || 50
+    empty = _empty || 523 //tile index for dirt
+    solid = _solid || 938 //tile index for grass
+    numberOfSteps = steps || 3
+    birthLimit = birth || 3
+    deathLimit = death || 4
+
+    var cellmap = generateMap(edgeTile)
     var flat = _.flatten(cellmap)
 
     return flat
 }
-
-getCells()
 
 module.exports = getCells
