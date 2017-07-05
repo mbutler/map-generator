@@ -2,12 +2,37 @@ let _ = require('lodash')
 let fs = require('fs')
 let backgroundCells = require('./cellular')
 
+// default: 523, 938, 50, 3, 3, 4, 940 or leave empty params for default
+// can't use tiles with transparency on the background or it turns grey
+var cellList = backgroundCells(
+
+    // "empty" tile gid.
+    523,
+
+    // "solid" tile gid
+    938,
+
+    // percent chance for a tile to start alive
+    50,
+
+    // number of simulation steps to perform
+    3,
+
+    // birth rate
+    4,
+
+    // death rate
+    3,
+
+    //tile gid for edge tiles to fill in around "empty" areas
+    940
+
+)
+
+// here we'll build a list of specific areas on the atlas
 let statue_head = [537, 538, 569, 570, 601, 602]
 
-// _empty, _solid, startAliveChance, steps, birth, death, edgeTile
-// default: 523, 938, 50, 3, 3, 4, 940
-var cellList = backgroundCells(524, 937, 50, 3, 3, 3, 900)
-
+// map properties
 var height = 100,
     width = 100,
     orientation = "orthogonal",
@@ -69,23 +94,23 @@ let stacking = {
  * @param {string} tiles - The name of the png sprite atlas as specified in the json.
  * @param {integer} x - The X coordinate of where the selection should be placed on the map (1-100).
  * @param {integer} y - The Y coordinate of where the selection should be placed on the map (1-100).
- * @param {array} tileList - An array of all of the tiles in the atlas selection.
+ * @param {array} tileList - An array of all of the selected tile gids in the atlas. Top-left should be origin, list left to right.
  * @param {integer} columns - The number of columns in the atlas selection area.
  * @param {string} layer - The name of the layer to place the selection as specified in the json.
  * @param {boolean} blocked - Whether or not to also block the entire selection on the Blocked layer
  */
 function placeTilesFromAtlas(tiles, x, y, tileList, columns, layer, blocked) {
     var tileset = _.find(map.tilesets, ['name', tiles])
-    var startTile = getIndexFromCoords(x, y)
     var i, j
     var tileList = tileList
     var firstTile = _.head(tileList)
     var lastTile = _.last(tileList)
     var columns = columns
-    var chunkList = _.chunk(tileList, columns)
+    var chunkList = _.chunk(tileList, columns) // chunk our tiles into rows. tileList needs to be listed by row
     var mapLayer = _.find(map.layers, ['name', layer]) || {}
     var blockedLayer = _.find(map.layers, ['name', "Blocked"])
 
+    // adapted from placeTiles. Just uses the tileList passed in instead of entire tileset
     _.forEach(chunkList, function(row) {
         for (i = 0; i < columns; i++) {
             let newY = y + _.indexOf(chunkList, row)
@@ -95,6 +120,7 @@ function placeTilesFromAtlas(tiles, x, y, tileList, columns, layer, blocked) {
 
             mapLayer.data[index] = currentTile
 
+            // no stacking for now because of laziness, just block the whole thing
             if (blocked) {
                 blockedLayer.data[index] = 137
             }
@@ -109,7 +135,7 @@ function placeTilesFromAtlas(tiles, x, y, tileList, columns, layer, blocked) {
  * @param {integer} startY - The Y coordinate on the map where the selection should begin.
  * @param {integer} rows - The number of rows in the selection area.
  * @param {integer} columns - The number of columns in the selection area.
- * @param {string} layer - The name of the layer from which to select from. Specified in json file.
+ * @param {string} layer - The name of the layer from which to select. Specified in json file.
  * @return {array} - An array of all elements in the 1D layer.data
  */
 function getAreaContents(startX, startY, rows, columns, layer) {
@@ -132,7 +158,7 @@ function getAreaContents(startX, startY, rows, columns, layer) {
 
 /**
  * Checks to see if the specific 8x8 tree tileset exists at the map coordinates given. Top-left is the origin.
- * Used to potentially place another tree in this spot, so it check all 64 tiles for overlap. 
+ * Used to potentially place another tree in this spot, so it checks all 64 tiles for overlap. 
  *
  * @param {integer} x - The X coordinate of the top-left 8x8 selection.
  * @param {integer} y - The Y coordinate of the top-left 8x8 selection.
@@ -140,16 +166,24 @@ function getAreaContents(startX, startY, rows, columns, layer) {
  */
 function isTree(x, y) {
     var tree = false
+
+    // get the foreground and middleground layers since this is where the tree will live
     var fore = _.find(map.layers, ['name', "Foreground"])
     var mid = _.find(map.layers, ['name', "Middleground"])
+
+    // get a list of all the elements at the designated 8x8 area on the layers
     var foreList = getAreaContents(x, y, 8, 8, "Foreground")
     var midList = getAreaContents(x, y, 8, 8, "Middleground")
+
+    //get the gids for the tree at each appropriate layer
     var treeMidList = _.find(stacking.tree, ['name', 'Middleground'])
     var treeForeList = _.find(stacking.tree, ['name', "Foreground"])
 
+    // get an array of any gids that are in common between the tree and the layers
     var foreIntersect = _.intersection(foreList, treeForeList.range)
     var midIntersect = _.intersection(midList, treeMidList.range)
 
+    // if there's nothing in either returned list, then our spot is empty of trees
     if (foreIntersect.length > 0 || midIntersect.length > 0) {
         tree = true
     }
@@ -179,27 +213,40 @@ function placeTiles(tiles, x, y, layer) {
     var mapLayer = _.find(map.layers, ['name', layer]) || {}
     var stack = stacking[tiles]
 
-    // loops through each row and column, looking up map index values and replacing with tileset values
+    // loops through each row of the tileset 
     _.forEach(chunkList, function(row) {
+        // loops through each column of the tileset
         for (i = 0; i < columns; i++) {
+            // starting y plus the index offset of the row so they are sequenced correctly
             let newY = y + _.indexOf(chunkList, row)
+                // starting x plus the index of the column iterator so they are sequenced correctly
             let newX = x + i
+                // get the right array index of a 10,000 element array (map layer)
             let index = getIndexFromCoords(newX, newY)
+                // get the tile element gid from the right spot in the map layer array
             var currentTile = row[i]
 
             if (stack) {
+                // loop through the entire stacking object, looking for a match
                 _.forEach(stack, function(_layer) {
+                    // if the currentTile is included in the current in-loop stacking _layer
                     if (_.includes(_layer.range, currentTile)) {
+                        // look up the entire layer object by name
                         mapLayer = _.find(map.layers, ['name', _layer.name])
+                            // if we've specified tileset gids to be blocked, add the red tile to the Blocked layer
                         if (_layer.name === "Blocked") {
                             currentTile = 137
                             mapLayer.data[index] = currentTile
                         } else {
+                            // otherwise, replace the element from the map layer data array with 
+                            // the current tile in our tileset
                             mapLayer.data[index] = currentTile
                         }
                     }
                 })
             } else {
+                // if no blocking is needed, just swap out the element in the
+                // map layer data array with our correct tileset gid
                 mapLayer.data[index] = currentTile
             }
         }
@@ -218,6 +265,7 @@ function placeTiles(tiles, x, y, layer) {
 function walkAndReplace(original, replacement, rate, layer, blocked) {
     let mapLayer = _.find(map.layers, ['name', layer])
     let blockedLayer = _.find(map.layers, ['name', "Blocked"])
+
     for (var p = 0; p < width * height; p++) {
 
         if (mapLayer.data[p] === original) {
@@ -234,7 +282,7 @@ function walkAndReplace(original, replacement, rate, layer, blocked) {
 }
 
 /**
- * Builds a 100x100 map layer. If "Background" is the parameter, it will use the cellList data instead.
+ * Builds a 100x100 map layer. If "Background" is the parameter, it will use the cellList data, otherwise, fill with zeros.
  *
  * @param {string} layerName - The name of the map layer to create.
  * @return {object} - The layer object with all layer properties.
@@ -259,6 +307,7 @@ function makeLayer(layerName) {
             layer.data.push(cellList[i])
         }
     } else {
+        // or just fill it with zeroes, making it empty
         for (i = 0; i < 10000; i++) {
             layer.data.push(0)
         }
@@ -269,6 +318,7 @@ function makeLayer(layerName) {
 
 /**
  * Places the 'tree' tileset on the map a number of times using the placeTiles function.
+ * Just picks random spots and tries to put a tree, skips if there's already a tree
  *
  * @param {integer} total - The number of tries to place a tree. Serves as an upper limit. 
  */
@@ -365,7 +415,7 @@ walkAndReplace(938, 939, 25, "Background", false)
 walkAndReplace(0, 1043, 1, "Middleground", false)
 walkAndReplace(0, 935, 1, "Middleground", true)
 
-//placeTilesFromAtlas('terrain_atlas', 16, 15, statue_head, 2, "Middleground", true)
+placeTilesFromAtlas('terrain_atlas', 16, 15, statue_head, 2, "Middleground", true)
 
 //placeTiles("tree", 1, 1)
 
